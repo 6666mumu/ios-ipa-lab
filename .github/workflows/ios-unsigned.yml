@@ -1,0 +1,81 @@
+name: Build unsigned iOS IPA
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-unsigned-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 35
+    env:
+      CI: 'true'
+      FLUTTER_SUPPRESS_ANALYTICS: 'true'
+    steps:
+      - name: Check out application source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Reject signing material in tracked files
+        run: python3 ci/check_repository.py
+
+      - name: Install the pinned official Flutter SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(tr -d '\r\n' < .flutter-version)"
+          revision="$(tr -d '\r\n' < .flutter-revision)"
+          git clone --depth 1 --branch "$version" https://github.com/flutter/flutter.git "$RUNNER_TEMP/flutter"
+          test "$(git -C "$RUNNER_TEMP/flutter" rev-parse HEAD)" = "$revision"
+          echo "$RUNNER_TEMP/flutter/bin" >> "$GITHUB_PATH"
+          "$RUNNER_TEMP/flutter/bin/flutter" config --no-analytics
+          "$RUNNER_TEMP/flutter/bin/flutter" precache --ios
+          "$RUNNER_TEMP/flutter/bin/flutter" --version --machine > flutter-version.json
+          xcodebuild -version > xcode-version.txt
+          sw_vers > macos-version.txt
+
+      - name: Resolve locked packages, analyze and test
+        run: |
+          flutter pub get --enforce-lockfile
+          dart format --output=none --set-exit-if-changed lib test
+          flutter analyze --fatal-infos
+          flutter test
+
+      - name: Compile an iPhone release without signing
+        run: >-
+          flutter build ios --release --no-codesign
+          --build-number="$GITHUB_RUN_NUMBER"
+          --dart-define=BUILD_NUMBER="$GITHUB_RUN_NUMBER"
+          --dart-define=BUILD_COMMIT="$GITHUB_SHA"
+
+      - name: Package and verify the unsigned IPA
+        run: |
+          bash ci/package_unsigned_ipa.sh build/ios/iphoneos/Runner.app dist/IPA-Lab-unsigned.ipa
+          cp flutter-version.json xcode-version.txt macos-version.txt dist/
+          printf '%s\n' "$GITHUB_SHA" > dist/source-commit.txt
+          {
+            echo '### Unsigned iOS IPA generated'
+            echo "Source commit: $GITHUB_SHA"
+            echo 'Download the artifact below, unzip it and import the .ipa into your local signing tool.'
+            echo 'No signing certificate, password or provisioning profile is used by this workflow.'
+            echo 'Device installation and launch require separate validation after signing.'
+            echo '```'
+            cat dist/SHA256SUMS.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload IPA, checksum and build evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: unsigned-ipa-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
