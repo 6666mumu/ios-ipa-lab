@@ -1,0 +1,56 @@
+name: Native iOS unsigned IPA (template)
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: Repository-relative .xcodeproj or .xcworkspace path
+        required: true
+        default: native/App.xcodeproj
+      scheme:
+        description: Shared Xcode scheme
+        required: true
+        default: App
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 ci/check_repository.py
+      - name: Compile native iOS archive without signing
+        env:
+          PROJECT: ${{ inputs.project }}
+          SCHEME: ${{ inputs.scheme }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PROJECT" != /* && "$PROJECT" != *..* && -d "$PROJECT" ]]
+          [[ "$SCHEME" =~ ^[A-Za-z0-9_.\ -]+$ ]]
+          case "$PROJECT" in
+            *.xcodeproj) selector=-project ;;
+            *.xcworkspace) selector=-workspace ;;
+            *) exit 2 ;;
+          esac
+          xcodebuild "$selector" "$PROJECT" -scheme "$SCHEME" \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Native.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY='' archive
+          app_count=0
+          for app in "$RUNNER_TEMP/Native.xcarchive/Products/Applications/"*.app; do
+            [[ -d "$app" ]] || continue
+            app_path="$app"
+            app_count=$((app_count + 1))
+          done
+          [[ "$app_count" -eq 1 ]]
+          bash ci/package_unsigned_ipa.sh "$app_path" dist/Native-unsigned.ipa
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-unsigned-ipa-${{ github.run_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
