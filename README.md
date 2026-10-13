@@ -40,6 +40,14 @@ git commit -m "Describe the app change"
 
 每次显式构建才使用云端运行器；普通代码提交不会自动重复构建。Actions artifact 保留 **7 天**；Release 资产不受这项 7 天保留设置控制。
 
+如果终端中断，或构建已经在 Actions 上完成，使用实际 run ID 接着等待、下载、校验及发布，不要再次触发云端编译：
+
+```powershell
+.\scripts\Build-Ipa.ps1 -RunId 38326071388 -PublishRelease
+```
+
+`-RunId` 不与 `-Push` 混用。恢复时以该次云端构建的源码提交为准，允许本地已有后续文档修改；已有 Release 会下载并核对 IPA，不覆盖资产。新构建通过触发前后的 run ID 差集识别结果，不依赖 Windows 的时间或时区。
+
 GitHub CLI 需要 `workflow` scope 上传 `.github/workflows`：
 
 ```powershell
@@ -47,6 +55,12 @@ gh auth refresh -h github.com -s workflow
 ```
 
 此登录属于 GitHub，和 Apple Developer 会员无关。公开仓库的标准运行器执行时间免费；私有仓库消耗账号额度，额度与存储费用以 GitHub 官方账单为准。本项目不修改支付方式、预算或购买运行器。
+
+## 首轮真实构建记录
+
+2026-10-13 的[构建 #1](https://github.com/6666mumu/ios-ipa-lab/actions/runs/38326071388)已完成真实 iOS Release 编译、未签名打包和 Windows 二次校验。源码为 `553f0cf331cab2f311ac0695abaa97763fe0444d`，运行器实际为 macOS 26.6.2 / Xcode 26.6（17F113），Flutter 3.47.7 / Dart 3.13.5。
+
+首轮 IPA 为 6,046,367 字节，SHA-256：`a60aed0a1e47709215f14320cb71308ac0ff6a136895c1a39844ac30d58605b4`。主程序与两个 Flutter framework 均为未签名 arm64 iOS 真机二进制。此记录证明编译和文件校验成功，iPhone 安装与运行仍待用户确认。
 
 ## 云端到底做了什么
 
