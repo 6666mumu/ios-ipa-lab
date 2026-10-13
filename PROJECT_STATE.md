@@ -1,8 +1,19 @@
 # 当前状态
 
-更新：2026-10-13。阶段：Windows 环境和最小测试 App 已准备，首轮 macOS iOS 云端编译及 IPA 校验成功；正在完成自动化恢复与重复构建验证。
+更新：2026-10-13。阶段：Windows 开发环境、最小测试 App、macOS 未签名 IPA 编译和发布全部跑通。两次真实云端构建成功，完整新构建自动化和已有构建恢复均已验证；iPhone 签名安装待用户验收。
 
 远端：https://github.com/6666mumu/ios-ipa-lab ，分支 main。用户已完成 GitHub CLI workflow 授权，工作流提交 `553f0cf331cab2f311ac0695abaa97763fe0444d` 已推送。不要重复要求授权或创建仓库。
+
+## 当前可下载产物
+
+- 最新已验证构建：#2 / `38326824410`，源码 `bb7e4688b365974b5417177cc156a2f64b5713db`。main 后续仅更新交接文档，不改变这份产物的源码归属。
+- IPA 直链：https://github.com/6666mumu/ios-ipa-lab/releases/download/ipa-build-38326824410/IPA-Lab-unsigned.ipa
+- Release：https://github.com/6666mumu/ios-ipa-lab/releases/tag/ipa-build-38326824410
+- 构建日志：https://github.com/6666mumu/ios-ipa-lab/actions/runs/38326824410
+- 本机：`artifacts/38326824410/IPA-Lab-unsigned.ipa`，6,046,366 字节，SHA-256 `de1b648f5d2ef3d4596c40e7b2ec6e7654ce8e3761166bbe8215657b8818e3f9`。
+- 版本 1.0.0、构建号 2、iOS 15.0+、原始 Bundle ID `com.example.ipaLab`。实际云端工具为 macOS 26.6.2 / Xcode 26.6（17F113）。Release 直链匿名下载后哈希一致。
+
+## 配置
 
 - 官方 Flutter 3.47.7 / Dart 3.13.5，固定 revision `abaf9c523780a608bd46686fd5e53740a07077f8`。
 - 最小离线 App：中文启动页、点击计数/重置、构建号和源码版本；原始 Bundle ID `com.example.ipaLab`，iOS 15.0+。
@@ -18,9 +29,12 @@
 - Windows 准备脚本已实际运行并复用已有 Git/GitHub CLI/Python。
 - actionlint 1.7.12 校验 Flutter 工作流和 Swift 原生模板通过（未配置额外 ShellCheck/Pyflakes）；PowerShell、Python 和打包 Bash 语法检查通过。
 - **真实云端编译与 IPA 校验通过**：run #1 / `38326071388`，https://github.com/6666mumu/ios-ipa-lab/actions/runs/38326071388 。macOS 26.6.2、Xcode 26.6（17F113）。Windows 下载到 `artifacts/38326071388/` 并确认 6,046,367 字节，SHA-256 `a60aed0a1e47709215f14320cb71308ac0ff6a136895c1a39844ac30d58605b4`；主程序及两个 Flutter framework 为 arm64 iOS 真机且无残余代码签名。
+- **完整新构建自动化通过**：`Build-Ipa.ps1 -Push -PublishRelease` 对构建 #2 实际完成本地检查、推送、识别新 run、等待云端成功、下载、源码/结构/哈希校验及 Release 发布；第二轮约 2 分 34 秒完成 macOS job。公开直链已实际匿名下载验证。
+- **中断恢复和已有 Release 通过**：`Build-Ipa.ps1 -RunId 38326071388 -PublishRelease` 实际重新下载、复核已有产物和公开 Release，没有重新编译或覆盖 Release 资产。原 UTC 日期误解析和 gh artifact 不覆盖已有文件问题已修正。
 
 ## 未验证 / 下一步
 
-- 首轮云端构建成功，但原 Windows 自动化因 JSON 日期转回字符串丢失 UTC 时区而未识别该 run；已改为 run ID 差集并增加 `-RunId` 恢复。应完成新入口的实际重复构建和 Release 下载验证，记录真实结果；先查 Actions 避免盲目重复触发。
 - 真机全能签导入、签名、安装和按钮互动均待用户验证。描述文件若为显式 App ID，需要本地匹配 Bundle ID。
+- 当前没有开发环境或云端构建阻塞。后续修改先读 README；新 App/第三方源码用独立工程与仓库，按实际依赖与权限适配。Actions artifact 保留 7 天；过期后使用对应 Release 直链，或提交新版本后构建。
+- Swift 原生模板仅通过静态检查，未实编独立 SwiftUI 项目。
 - 不从本仓库延伸为独立 watchOS 已可安装的结论。

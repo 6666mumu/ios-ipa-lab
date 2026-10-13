@@ -5,6 +5,7 @@
 - GitHub workflow 授权完成后推送工作流，真实 macOS 云端构建 #1（38326071388）成功；iOS arm64 Release、未签名 IPA 打包、Windows 结构与 SHA-256 校验通过。
 - 修正 Windows 构建入口误解析 UTC 日期、未识别已触发 run 的问题：改用触发前后的 run ID 差集，避免时区和时钟偏差；增加 `-RunId` 恢复下载发布，采用该 run 的真实源码提交，已有 Release 仅下载校验、不覆盖。
 - 增加产物源码提交一致性检查；artifact 先下载到本轮独立暂存目录再更新，处理 GitHub CLI 拒绝覆盖已有文件导致无法恢复的问题。同步 README、PROJECT_STATE 和 TODO。真机签名、安装与启动尚未验证。
+- 修正后的完整入口实际跑通构建 #2（38326824410，源码 `bb7e4688b365974b5417177cc156a2f64b5713db`）：检查、推送、识别 run、等待、下载复核与 Release 发布成功。6,046,366 字节 IPA 的 SHA-256 为 `de1b648f5d2ef3d4596c40e7b2ec6e7654ce8e3761166bbe8215657b8818e3f9`，公开直链匿名下载一致；已有构建与 Release 恢复路径也实际通过。
 
 ## 2026-10-12
 
